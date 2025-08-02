@@ -1,0 +1,69 @@
+rosbag record -O coulomb_fric.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /measured_cf /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_pos.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /measured_cf /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_neg_j1.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /measured_cf /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+
+
+
+
+rosbag record -O coulomb_fric_piecewise_30d_180s.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_piecewise_30d_30s.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_uni_180d_10s.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_bi_180d_5s_3r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_bi_j2_110d_5s_10r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_bi_j1InitN90_j2_110d_5s_10r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_bi_j1InitN90_j3_235_5s_3r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+
+rosbag record -O coulomb_fric_bi_j3_235_5s_10r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+
+
+rosbag record -O coulomb_fric_bi_j3_100_180s_2r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+
+rosbag record -O coulomb_fric_bi_j1_180d_5s_10r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+
+
+
+rosbag record -O coulomb_fric_mjp_bi_j1_180d_3r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_mjp_bi_j2_110d_3r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_mjp_bi_j1InitN90_j2_110d_3r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_mjp_bi_j3_100_3r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_mjp_bi_j1InitN90_j3_200_3r.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+
+
+
+
+
+rosbag record -O coulomb_fric_bi_j1_180d_5s_3r_1k.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_bi_j1_180d_40s_3r_1k.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_bi_j1_180d_120s_1r_1k.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_bi_j2InitN50_j1_180d_180s_1r_1k.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_bi_j2InitN50_j1_180d_240s_1r_1k.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_pw_j2InitN50_j1_30d_180s_1r_1k.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+rosbag record -O coulomb_fric_bi_j1InitN90_j2_110d_120s_1r_1k.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
+
+
+
+rosbag record -O coulomb_fric_test.bag /PSM2/measured_js /PSM2/setpoint_js /PSM2/jaw/measured_js /PSM2/spatial/jacobian /PSM2/gravity_compensation/setpoint_js
