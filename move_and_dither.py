@@ -92,7 +92,7 @@ class PositionDithering:
             print('  > preparing for cartesian motion')
 
             # set in position joint mode
-            goal[0] = math.radians(0)
+            goal[0] = math.radians(-8)
             goal[1] = -1
             goal[2] = 0.12
             goal[3] = 0.0
@@ -127,6 +127,7 @@ class PositionDithering:
         while True:
 
             jp, _ = self.arm.measured_jp()
+            # print(jp)
 
             # safety stop if too high angles are achieved
             if jp[self.joint_index] > math.radians(100) or jp[self.joint_index] < -math.radians(100):
@@ -153,16 +154,17 @@ class PositionDithering:
 
             # arm movement
             if t >= 10.0:
-                pos -= 0.0000025
+                pos += 0.0000025
 
             sine = numpy.sin(2.0 * math.pi * self.dith_freq * t) * smooth
 
             goal = np.copy(jp)
             goal[self.joint_index] = sine * self.dith_ampl + pos
             # goal_hist.append(goal[self.joint_index])
+            # print(goal)
             self.arm.servo_jp(goal)
 
-            if t > 70.0: self.dith_off = True
+            if t > 125.0: self.dith_off = True
 
             t += dt
             sleep_rate.sleep()
