@@ -1,16 +1,52 @@
+#!/usr/bin/env python3
+"""
+Online Dithering Control for dVRK Arms
+======================================
+
+This script applies a joint-level dithering signal to a dVRK arm through the 
+CRTK interface. Dithering consists of a small oscillatory torque applied 
+to reduce static friction and improve motion smoothness or force estimation.
+
+It supports optional online amplitude tuning using accelerometer feedback.
+
+Main features:
+    - Homing and safety-checked Cartesian positioning
+    - Dithering control in effort mode
+    - Automatic adjustment of dithering amplitude based on vibration intensity
+    - Real-time accelerometer data monitoring
+
+Usage:
+    python3 dvrk_dithering.py \
+        -a PSM1 \
+        -j 0 \
+        -A 0.5 \
+        -f 10 \
+        -p 0.001
+
+Arguments:
+    -a, --arm                   Arm name (PSM1, PSM2, PSM3)
+    -j, --joint_index           Index of the joint to apply dithering
+    -A, --dithering_amplitude   Dithering amplitude (Nm or N)
+    -f, --dithering_frequency   Dithering frequency (Hz)
+    -p, --period                Control period [s] (default: 0.001)
+
+Safety:
+    Ensure the robot is in a safe workspace and in simulation or test mode 
+    before running this script. Dithering applies continuous torque signals.
+"""
+
 import argparse
 import time
 import sys
 import crtk
 import math
-import matplotlib.pyplot as plt
 import numpy
 import rospy
 from geometry_msgs.msg import Vector3Stamped
-import scipy
 from collections import deque
 
 
+# =========================== DEVICE CLASS ============================== 
 class Device:
     def __init__(self, ral, arm_name, connection_timeout = 5.0):
         # populate this class with all the ROS topics we need
@@ -31,45 +67,45 @@ class Device:
         return self.__ral
 
 
-class PositionDithering:
+# =========================== DITHERING CLASS =============================
+class Dithering:
 
     # configuration
-    def __init__(self, ral, arm_name, dith_ampl, dith_freq, joint_index, period = 0.01):
-        print('> configuring dvrk_arm_test for {}'.format(arm_name))
-        self.ral = ral
-        self.arm_name = arm_name
-        self.period = period
-        self.frequency = 1.0 / period
+    def __init__(self, ral, arm_name, dith_ampl, dith_freq, joint_index, period = 0.001):
+        print('> configuring dithering on {}'.format(arm_name))
+        self.ral         = ral
+        self.arm_name    = arm_name
+        self.period      = period
+        self.frequency   = 1.0 / period
         self.joint_index = joint_index
-        self.arm = Device(ral = ral,
-                          arm_name = arm_name)
+        self.arm         = Device(ral = ral,
+                                  arm_name = arm_name)
 
         # dithering configuration
         self.dith_ampl = dith_ampl
         self.dith_freq = dith_freq
-        self.dith_off = False
+        self.dith_off  = False
 
-
-        # Joint limits
+        # joint limits for safety
         self.JOINT_LIMITS = [
-            (math.radians(-20.0), math.radians(20.0)),  # Joint 1
-            (math.radians(-10.0), math.radians(10.0)),  # Joint 2
-            (0.050, 0.200),  # Joint 3
-            # (-1.57, 1.57),  # Joint 4
-            # (-3.14, 3.14),  # Joint 5
-            # (-1.0, 1.0)  # Joint 6
+            (math.radians(-100.0), math.radians(100.0)),  # joint 0
+            (math.radians(-60.0), math.radians(60.0)),  # joint 1
+            (0.050, 0.250),                             # joint 2
         ]
 
         # accelerometer data subscriber
-        self.acc_data = deque(maxlen=2000)
-        self.acc_sub = self.ral.subscriber("/accelerometer/data", Vector3Stamped, self.acc_callback)
+        self.acc_data       = deque(maxlen=2000)
+        self.acc_sub        = self.ral.subscriber("/accelerometer/data", Vector3Stamped, self.acc_callback)
         self.check_spectrum = False
-        self.acc_freq = 498.0
-        self.acc_counter = 0
+        self.acc_freq       = 498.0
+        self.acc_counter    = 0
 
         time.sleep(0.2)
 
+
+    # ---------------------- ACCELEROMETER CALLBACK ---------------------- #
     def acc_callback(self, msg):
+
         self.acc_data.append([msg.vector.x, msg.vector.y, msg.vector.z])
     
         if self.check_spectrum:
@@ -77,40 +113,35 @@ class PositionDithering:
             if self.acc_counter == 2000:
                 self.acc_counter = 0
                 data = numpy.array(self.acc_data)
-                # print('X: ', end='')
                 x = self.spectrum(data[:, 0], self.acc_freq)
-                # print('Y: ', end='')
                 y = self.spectrum(data[:, 1], self.acc_freq)
-                # print('Z: ', end='')
                 z = self.spectrum(data[:, 2], self.acc_freq)
                 total_spectrum = numpy.sqrt(x**2 + y**2 + z**2)
                 print(f"> spectral amplitude at {self.dith_freq} Hz: {total_spectrum:.4f}")
 
+                # dithering amplitude adjustment
                 if total_spectrum < 0.005:
                     self.dith_ampl += 0.1
-                    print(f'  < dithering amplitude increased: {self.dith_ampl:.2f} Nm')
+                    print(f'  < dithering amplitude increased: {self.dith_ampl:.2f} Nm (or N)')
                 elif total_spectrum > 0.010:
                     self.dith_ampl -= 0.1
-                    print(f'  < dithering amplitude decreased: {self.dith_ampl:.2f} Nm')
+                    print(f'  < dithering amplitude decreased: {self.dith_ampl:.2f} Nm (or N)')
 
                 print('---------------------------------')
 
-    def band_pass(self, data, fs, low_cut, high_cut, order):
-        nyq = 0.5 * fs
-        low = low_cut / nyq
-        high = high_cut / nyq
-        b, a = scipy.signal.butter(order, [low, high], btype='band', analog=False)
-        return scipy.signal.filtfilt(b, a, data)
     
+    # ---------------------- SPECTRUM ANALYSIS -------------------------- #
     def analyze_spectrum(self, freq, ampl, target_f):
+        '''returns the maximum value of the spectrum in a neighborhood of the dithering frequency'''
         idx_l = numpy.argmin(numpy.abs(freq - (target_f - 1.0)))
         idx_h = numpy.argmin(numpy.abs(freq - (target_f + 1.0)))
         return numpy.max(ampl[idx_l:idx_h])
     
+    
     def spectrum(self, signal, fs):
-        signal_filt = self.band_pass(signal, fs, self.dith_freq - 5.0, self.dith_freq + 5.0, 4)
-        N = len(signal_filt)
-        fft_vals = numpy.fft.fft(signal_filt)
+        '''computes the spectrum for dithering amplitude tuning'''
+        N = len(signal)
+        fft_vals = numpy.fft.fft(signal)
         fft_vals = fft_vals[:N // 2]
         freqs = numpy.fft.fftfreq(N, 1 / fs)[:N // 2]
         amplitudes = (2.0 / N) * numpy.abs(fft_vals)
@@ -118,8 +149,9 @@ class PositionDithering:
         return value
 
 
-
+    # ---------------------- HOMING AND PREPARATION ---------------------- #
     def home(self):
+
         self.ral.check_connections()
 
         print('> starting enable')
@@ -130,14 +162,17 @@ class PositionDithering:
         if not self.arm.home(10):
             print('  ! failed to home within 10 seconds')
             self.ral.shutdown()
+
         # get current joints just to set size, ignore timestamp
         print('> move to starting position')
         self.prepare_cartesian()
+
         # move and wait
         print('> moving to starting position')
         jp, _ = self.arm.setpoint_jp()
         goal = numpy.copy(jp)
         self.arm.move_jp(goal).wait()
+
         # try to move again to make sure waiting is working fine, i.e. not blocking
         print('> testing move to current position')
         move_handle = self.arm.move_jp(goal)
@@ -154,7 +189,7 @@ class PositionDithering:
                 or (self.arm_name.endswith('PSM3')) or (self.arm_name.endswith('ECM'))):
             print('  > preparing for cartesian motion')
 
-            # set in position joint mode
+            # set start position
             goal[0] = math.radians(0.0)
             goal[1] = 0.0
             goal[2] = 0.12
@@ -168,6 +203,7 @@ class PositionDithering:
             print('  < ready for cartesian mode')
 
 
+    # ---------------------- SAFETY CHECKS ------------------------------- #
     def check_joint_limits(self, joint_values, limits):
 
         joint_values = joint_values[:3]
@@ -176,15 +212,18 @@ class PositionDithering:
             if not (low <= val <= high):
                 print(joint_values, limits)
                 self.arm.disable()
-                print('ROM limit reached')
+                print('! ROM limit reached')
                 self.ral.shutdown()
 
 
+    # ---------------------- DITHERING CONTROL LOOP ---------------------- #
     def dithering(self):
-        start_duration = 5.0
-        stop_duration = 1.0
+
+        # ramping factors
+        start_duration  = 5.0
+        stop_duration   = 1.0
         start_amplitude = numpy.linspace(0, 1, int(start_duration * self.frequency))
-        stop_amplitude = numpy.linspace(1, 0, int(stop_duration * self.frequency))
+        stop_amplitude  = numpy.linspace(1, 0, int(stop_duration * self.frequency))
 
         sleep_rate = self.ral.create_rate(self.frequency)
         t = 0
@@ -192,28 +231,30 @@ class PositionDithering:
         dt = self.period
 
         jp_measured, _ = self.arm.measured_jp()
-        pos = jp_measured[self.joint_index]
-        vel = 0.0
 
+        # set nominal position and velocity
+        q_ref       = jp_measured[self.joint_index]
+        q_dot_ref   = 0.0
 
         print('> press Enter to start dithering signal for joint {}:'.format(self.joint_index))
         print('  frequency: {} Hz'.format(self.dith_freq))
-        input('  amplitude: {} Nm'.format(self.dith_ampl))
+        input('  amplitude: {} Nm (or N)'.format(self.dith_ampl))
 
         while not self.ral.is_shutdown():
+
             jp_measured, _ = self.arm.measured_jp()
 
             # safety stop if too high angles are achieved
             self.check_joint_limits(jp_measured, self.JOINT_LIMITS)
 
-
-            # manage the beginning and the end of the dithering signal
+            # handle ramp up / down of the dithering signal
             if t <= start_duration:
                 if i >= len(start_amplitude):
                     smooth = 1
                 else:
                     smooth = start_amplitude[i]
                 i += 1
+
             elif self.dith_off:
                 self.check_spectrum = False
                 if i >= len(stop_amplitude):
@@ -222,25 +263,30 @@ class PositionDithering:
                 else:
                     smooth = stop_amplitude[i]
                 i += 1
+
             else:
-                self.check_spectrum = True
+                self.check_spectrum = True  # change to False to disable online-tuning of dithering amplitude
                 smooth = 1
                 i = 0
 
+            # to move the arm while dithering is on, update nominal position and velocity
+            if t >= 10.0:
+                q_ref     -= 0.0000025    # velocity = 0.0000025 rad/ms --> 0.0025 rad/s
+                q_dot_ref = - 0.0025
+
             # preparing servo js commands
             jp_setpoint = numpy.copy(jp_measured)
-            jp_setpoint[self.joint_index] = pos
+            jp_setpoint[self.joint_index] = q_ref
 
             jv_setpoint = numpy.zeros_like(jp_setpoint)
-            jv_setpoint[self.joint_index] = vel
+            jv_setpoint[self.joint_index] = q_dot_ref
 
             jf_setpoint = numpy.zeros_like(jp_setpoint)
             jf_setpoint[self.joint_index] = numpy.sin(2.0 * math.pi * self.dith_freq * t) * smooth * self.dith_ampl
 
-
             self.arm.servo_js(jp_setpoint, jv_setpoint, jf_setpoint)
 
-
+            # dithering disable condition
             if t > 40.0:
                 self.dith_off = True
 
@@ -248,7 +294,7 @@ class PositionDithering:
             sleep_rate.sleep()
 
 
-
+    # ---------------------- MAIN RUN METHOD ----------------------------- #
     def run(self):
         self.home()
         self.dithering()
@@ -257,7 +303,7 @@ class PositionDithering:
     def on_shutdown(self):
         print ('>> illustrating user defined shutdown callback')
 
-
+# ==========================================================================
 if __name__ == '__main__':
     # extract ros arguments (e.g. __ns:= for namespace)
     argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
@@ -265,9 +311,9 @@ if __name__ == '__main__':
     # parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--arm', type = str, required = True,
-                        choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
+                        choices=['PSM1', 'PSM2', 'PSM3'],
                         help = 'arm name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace')
-    parser.add_argument('-p', '--period', type =float, default = 0.01,
+    parser.add_argument('-p', '--period', type =float, default = 0.001,
                         help = 'period used for loops using servo commands')
     parser.add_argument('-A', '--dithering_amplitude', type=float,
                         help='amplitude of the dithering command')
@@ -278,7 +324,7 @@ if __name__ == '__main__':
     args = parser.parse_args(argv)
 
     ral = crtk.ral('dvrk_arm_test')
-    application = PositionDithering(ral, args.arm, args.dithering_amplitude, args.dithering_frequency, args.joint_index, args.period)
+    application = Dithering(ral, args.arm, args.dithering_amplitude, args.dithering_frequency, args.joint_index, args.period)
     ral.on_shutdown(application.on_shutdown)
     ral.spin_and_execute(application.run)
 
