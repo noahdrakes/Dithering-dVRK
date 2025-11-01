@@ -7,6 +7,9 @@ This script applies a joint-level dithering signal to a dVRK arm through the
 CRTK interface. Dithering consists of a small oscillatory torque applied 
 to reduce static friction and improve motion smoothness or force estimation.
 
+This version operates sending a feedforward torque signal in addition to
+position and velocity references (`servo_js`).
+
 It supports optional online amplitude tuning using accelerometer feedback.
 
 Main features:
@@ -16,7 +19,7 @@ Main features:
     - Real-time accelerometer data monitoring
 
 Usage:
-    python3 dvrk_dithering.py \
+    python dithering_servo_js_with_accelerometer.py \
         -a PSM1 \
         -j 0 \
         -A 0.5 \
@@ -320,6 +323,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--dithering_frequency', type=float,
                         help='frequency of the dithering command')
     parser.add_argument('-j', '--joint_index', type=int,
+                        choices=[0, 1, 2],
                         help='joint you want to dither')
     args = parser.parse_args(argv)
 

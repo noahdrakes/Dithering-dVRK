@@ -11,7 +11,7 @@ This visualization is useful to identify static friction and viscous friction
 regions in each joint, which are key for friction characterization.
 
 Usage:
-    python3 plot_effort_vs_velocity.py \
+    python read_friction_id.py \
         -a PSM1 \
         -n data.bag \
         -j 0

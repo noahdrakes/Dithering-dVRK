@@ -6,9 +6,9 @@ Contact Force Estimation from ROS Bag Files
 This script estimates the external Cartesian force applied to a dVRK arm 
 from joint effort readings and the Jacobian matrix recorded in ROS bag files.
 
-It compares a contact condition (with an applied known weight) against a 
-baseline (free-space condition without contact), and computes the Mean Absolute 
-Error (MAE) with respect to the theoretical applied force.
+It compares estimated Cartesian force (from joint torques and Jacobian) against
+the theoretical one, from applied known weight. Uses a free-space baseline to remove internal effects.
+
 
 Usage:
     python read_weights_exp.py \

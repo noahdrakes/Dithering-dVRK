@@ -1,4 +1,30 @@
 #!/usr/bin/env python3
+"""
+constant_acceleration.py
+------------------------
+
+This script performs a constant-acceleration motion of one joint of a dVRK arm 
+(ECM, MTML, MTMR, PSM1–PSM3) using the CRTK interface.
+
+It allows the user to:
+- Home the selected arm.
+- Move to a specified or default start position.
+- Execute a back-and-forth motion under constant acceleration.
+
+Usage example:
+    python arm_constant_acc.py \
+    -a PSM1 \
+    -j 0 \
+    -A 0.5 \
+    -d 2.0
+
+Arguments:
+    -a, --arm               Arm name [ECM, MTML, MTMR, PSM1, PSM2, PSM3]
+    -j, --joint_index       Index of the joint to move [0, 1, 2]
+    -A, --acceleration      Constant acceleration value (rad/s² or m/s²)
+    -d, --segment_duration  Duration of each acceleration segment [s]
+    -p, --period            Servo update period [s] (default: 0.001)
+"""
 
 import argparse
 import time
@@ -43,7 +69,7 @@ class ConstantAcceleration:
         time.sleep(0.2)
 
 
-    # homing
+    # ---------------------- HOMING AND PREPARATION ---------------------- #
     def home(self):
 
         self.ral.check_connections()
@@ -101,7 +127,7 @@ class ConstantAcceleration:
         print('  < ready for cartesian mode')
 
 
-    # constat acceleration movement
+    # --------------------- CONSTANT ACC MOTION --------------------
     def move_const_acc(self):
 
         input('press Enter to start movement of joint {} with acc = {} rad/s^2 (or m/s^2)...'.format(self.joint_index, self.acc))
@@ -141,6 +167,7 @@ class ConstantAcceleration:
             sleep_rate.sleep()
 
 
+    # --------------------------- MAIN -----------------------------
     def run(self):
         self.home()
         self.move_const_acc()
@@ -150,6 +177,7 @@ class ConstantAcceleration:
         print ('>> illustrating user defined shutdown callback')
 
 
+# ===================================================================
 if __name__ == '__main__':
     # extract ros arguments (e.g. __ns:= for namespace)
     argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
@@ -157,7 +185,7 @@ if __name__ == '__main__':
     # parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--arm', type = str, required = True,
-                        choices=['ECM', 'MTML', 'MTMR', 'PSM1', 'PSM2', 'PSM3'],
+                        choices=['PSM1', 'PSM2', 'PSM3'],
                         help = 'arm name corresponding to ROS topics without namespace.  Use __ns:= to specify the namespace')
     parser.add_argument('-j', '--joint_index', type=int, required=True,
                         choices=[0, 1, 2],

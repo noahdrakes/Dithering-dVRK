@@ -3,18 +3,16 @@
 Position Dithering Control for dVRK Arms
 =========================================
 
-This script applies a sinusoidal dithering motion (in position) to a single 
-joint of a dVRK arm through the CRTK interface. Dithering can be used to 
-reduce static friction effects or to generate periodic micro-motions for 
-experimental validation of force estimation.
+This script applies a joint-level dithering signal to a dVRK arm through the 
+CRTK interface. Dithering consists of a small oscillatory torque applied 
+to reduce static friction and improve motion smoothness or force estimation.
 
-Compared to `dvrk_dithering.py`, this version operates in **position control**
-mode (`servo_jp`), generating oscillations in joint space instead of torque.
+This version operates in position control mode (`servo_jp`).
 
 It supports optional online amplitude tuning using accelerometer feedback.
 
 Usage:
-    python3 dvrk_position_dithering.py \
+    python dithering_servo_jp_with_accelerometer.py \
         -a PSM1 \
         -j 2 \
         -A 0.005 \
@@ -314,6 +312,7 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--dithering_frequency', type=float,
                         help='frequency of the dithering command')
     parser.add_argument('-j', '--joint_index', type=int,
+                        choices=[0, 1, 2],
                         help='joint you want to dither')
     args = parser.parse_args(argv)
 

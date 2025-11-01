@@ -7,7 +7,7 @@ Compares estimated Cartesian force (from joint torques and Jacobian) against
 measured force sensor data. Uses a free-space baseline to remove internal effects.
 
 Usage:
-    python read_weights_exp.py \
+    python read_palpation_exp.py \
         -a PSM1 \
         -j 0 \
         -n contact.bag \
