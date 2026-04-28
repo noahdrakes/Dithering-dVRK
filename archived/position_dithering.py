@@ -4,12 +4,8 @@ import time
 import sys
 import crtk
 import math
-import scipy
-import matplotlib.pyplot as plt
 import numpy
-import rospy
-from sensor_msgs.msg import JointState
-import PyKDL
+import rclpy
 
 class device:
     def __init__(self, ral, arm_name, connection_timeout = 5.0):
@@ -33,12 +29,13 @@ class device:
 class example_application:
 
     # configuration
-    def __init__(self, ral, arm_name, dith_ampl, dith_freq, period = 0.01):
+    def __init__(self, ral, arm_name, dith_ampl, dith_freq, joint_index = 0, period = 0.01):
         print('> configuring dvrk_arm_test for {}'.format(arm_name))
         self.ral = ral
         self.arm_name = arm_name
         self.dith_ampl = dith_ampl
         self.dith_freq = dith_freq
+        self.joint_index = joint_index
         self.period = period
         self.jp_init = None
         self.arm = device(ral = ral,
@@ -76,13 +73,16 @@ class example_application:
 
     def run_servo_jp(self):
 
-        joint_index = 0
+        joint_index = self.joint_index
         freq = self.dith_freq
         ampl = self.dith_ampl
-
+        print("HELLLOO")
         print('> dithering signal for joint {}:'.format(joint_index))
         print('  frequency: {} Hz\n  amplitude: {} Nm'.format(freq, ampl))
+        print("FREQ dtype: ", type(freq) )
         input('press Enter to start dithering...')
+
+        
 
         duration = 45  # seconds
         samples = int(duration / self.period)
@@ -176,8 +176,9 @@ class example_application:
         print ('>> illustrating user defined shutdown callback')
 
 if __name__ == '__main__':
-    # extract ros arguments (e.g. __ns:= for namespace)
-    argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
+    # initialize ROS 2 and strip ROS args before argparse processing
+    rclpy.init(args = sys.argv[1:])  # skip argv[0], script name
+    argv = rclpy.utilities.remove_ros_args(sys.argv[1:])
 
     # parse arguments
     parser = argparse.ArgumentParser()
@@ -190,9 +191,17 @@ if __name__ == '__main__':
                         help='amplitude of the dithering command')
     parser.add_argument('-f', '--dithering_frequency', type=float,
                         help='frequency of the dithering command')
+    parser.add_argument('-j', '--joint_index', type=int, default=0,
+                        help='joint you want to dither (default: 0)')
     args = parser.parse_args(argv)
 
     ral = crtk.ral('dvrk_arm_test')
-    application = example_application(ral, args.arm, args.dithering_amplitude, args.dithering_frequency, args.period)
+    application = example_application(
+        ral, args.arm,  float(args.dithering_amplitude), float(args.dithering_frequency), args.joint_index, float(args.period)
+    )
     ral.on_shutdown(application.on_shutdown)
-    ral.spin_and_execute(application.run)
+    try:
+        ral.spin_and_execute(application.run)
+    finally:
+        if rclpy.ok():
+            rclpy.shutdown()

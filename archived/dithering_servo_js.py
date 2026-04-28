@@ -3,11 +3,8 @@ import time
 import sys
 import crtk
 import math
-import matplotlib.pyplot as plt
 import numpy
-import rospy
-from sensor_msgs.msg import JointState
-import scipy
+import rclpy
 
 class Device:
     def __init__(self, ral, arm_name, connection_timeout = 5.0):
@@ -19,7 +16,6 @@ class Device:
         self.crtk_utils.add_measured_js()
         self.crtk_utils.add_setpoint_cp()
         self.crtk_utils.add_servo_jp()
-        self.crtk_utils.add_servo_js()
         self.crtk_utils.add_move_jp()
         self.crtk_utils.add_servo_cp()
         self.crtk_utils.add_move_cp()
@@ -202,7 +198,10 @@ class PositionDithering:
             #     pos -= 0.0000025    # velocity = 0.0000025 rad/ms --> 0.0025 rad/s
             #     vel = - 0.0025
 
-            self.arm.servo_js(jp_setpoint, jv_setpoint, jf_setpoint)
+            # ROS 2 CRTK exposes joint position/velocity and effort commands on
+            # separate topics (servo_jp and servo_jf), not combined servo_js.
+            self.arm.servo_jp(jp_setpoint, jv_setpoint)
+            self.arm.servo_jf(jf_setpoint)
 
             # pos_hist.append(jp_setpoint[self.joint_index])
             # vel_hist.append(jv_setpoint[self.joint_index])
@@ -241,8 +240,9 @@ class PositionDithering:
 
 
 if __name__ == '__main__':
-    # extract ros arguments (e.g. __ns:= for namespace)
-    argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
+    # initialize ROS 2 and strip ROS args before argparse processing
+    rclpy.init(args = sys.argv[1:])  # skip argv[0], script name
+    argv = rclpy.utilities.remove_ros_args(sys.argv[1:])
 
     # parse arguments
     parser = argparse.ArgumentParser()
@@ -262,6 +262,8 @@ if __name__ == '__main__':
     ral = crtk.ral('dvrk_arm_test')
     application = PositionDithering(ral, args.arm, args.dithering_amplitude, args.dithering_frequency, args.joint_index, args.period)
     ral.on_shutdown(application.on_shutdown)
-    ral.spin_and_execute(application.run)
-
-
+    try:
+        ral.spin_and_execute(application.run)
+    finally:
+        if rclpy.ok():
+            rclpy.shutdown()
