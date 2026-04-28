@@ -7,8 +7,8 @@ This script applies a joint-level dithering signal to a dVRK arm through the
 CRTK interface. Dithering consists of a small oscillatory torque applied 
 to reduce static friction and improve motion smoothness or force estimation.
 
-This version operates sending a feedforward torque signal in addition to
-position and velocity references (`servo_js`).
+This ROS 2 version sends position/velocity references with `servo_jp` and a
+feedforward torque signal with `servo_jf`.
 
 It supports optional online amplitude tuning using accelerometer feedback.
 
@@ -44,7 +44,7 @@ import sys
 import crtk
 import math
 import numpy
-import rospy
+import rclpy
 from geometry_msgs.msg import Vector3Stamped
 from collections import deque
 
@@ -60,7 +60,6 @@ class Device:
         self.crtk_utils.add_measured_js()
         self.crtk_utils.add_setpoint_cp()
         self.crtk_utils.add_servo_jp()
-        self.crtk_utils.add_servo_js()
         self.crtk_utils.add_move_jp()
         self.crtk_utils.add_servo_cp()
         self.crtk_utils.add_move_cp()
@@ -277,7 +276,7 @@ class Dithering:
                 q_ref     -= 0.0000025    # velocity = 0.0000025 rad/ms --> 0.0025 rad/s
                 q_dot_ref = - 0.0025
 
-            # preparing servo js commands
+            # preparing joint position/velocity and feedforward effort commands
             jp_setpoint = numpy.copy(jp_measured)
             jp_setpoint[self.joint_index] = q_ref
 
@@ -287,7 +286,10 @@ class Dithering:
             jf_setpoint = numpy.zeros_like(jp_setpoint)
             jf_setpoint[self.joint_index] = numpy.sin(2.0 * math.pi * self.dith_freq * t) * smooth * self.dith_ampl
 
-            self.arm.servo_js(jp_setpoint, jv_setpoint, jf_setpoint)
+            # ROS 2 CRTK exposes joint position/velocity and effort commands on
+            # separate topics, not as one combined servo_js command.
+            self.arm.servo_jp(jp_setpoint, jv_setpoint)
+            self.arm.servo_jf(jf_setpoint)
 
             # dithering disable condition
             if t > 40.0:
@@ -308,8 +310,9 @@ class Dithering:
 
 # ==========================================================================
 if __name__ == '__main__':
-    # extract ros arguments (e.g. __ns:= for namespace)
-    argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
+    # initialize ROS 2 and strip ROS args before argparse processing
+    rclpy.init(args = sys.argv[1:])  # skip argv[0], script name
+    argv = rclpy.utilities.remove_ros_args(sys.argv[1:])
 
     # parse arguments
     parser = argparse.ArgumentParser()
@@ -330,6 +333,10 @@ if __name__ == '__main__':
     ral = crtk.ral('dvrk_arm_test')
     application = Dithering(ral, args.arm, args.dithering_amplitude, args.dithering_frequency, args.joint_index, args.period)
     ral.on_shutdown(application.on_shutdown)
-    ral.spin_and_execute(application.run)
+    try:
+        ral.spin_and_execute(application.run)
+    finally:
+        if rclpy.ok():
+            rclpy.shutdown()
 
 

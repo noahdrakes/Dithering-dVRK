@@ -38,7 +38,7 @@ import sys
 import crtk
 import math
 import numpy
-import rospy
+import rclpy
 from geometry_msgs.msg import Vector3Stamped
 from collections import deque
 import PyKDL
@@ -265,14 +265,14 @@ class PositionDithering:
                 q_ref -= 0.0000025    # velocity = 0.0000025 rad/ms --> 0.0025 rad/s
                 q_dot_ref = -0.0025
 
-            # preparing servo_js command
+            # preparing servo_jp command
             sine = numpy.sin(2.0 * math.pi * self.dith_freq * t) * smooth
             cosine = numpy.cos(2.0 * math.pi * self.dith_freq * t) * smooth
 
-            jp_setpoint = np.copy(jp)
+            jp_setpoint = numpy.copy(jp)
             jp_setpoint[self.joint_index] = sine * self.dith_ampl + q_ref
             
-            jv_setpoint = np.zeros_like(jp_setpoint)
+            jv_setpoint = numpy.zeros_like(jp_setpoint)
             jv_setpoint[self.joint_index] = self.dith_ampl * 2.0 * math.pi * self.dith_freq * cosine + q_dot_ref
             
             self.arm.servo_jp(jp_setpoint, jv_setpoint)
@@ -297,8 +297,9 @@ class PositionDithering:
 
 # ===========================================================================
 if __name__ == '__main__':
-    # extract ros arguments (e.g. __ns:= for namespace)
-    argv = crtk.ral.parse_argv(sys.argv[1:]) # skip argv[0], script name
+    # initialize ROS 2 and strip ROS args before argparse processing
+    rclpy.init(args = sys.argv[1:])  # skip argv[0], script name
+    argv = rclpy.utilities.remove_ros_args(sys.argv[1:])
 
     # parse arguments
     parser = argparse.ArgumentParser()
@@ -319,4 +320,8 @@ if __name__ == '__main__':
     ral = crtk.ral('dvrk_arm_test')
     application = PositionDithering(ral, args.arm, args.dithering_amplitude, args.dithering_frequency, args.joint_index, args.period)
     ral.on_shutdown(application.on_shutdown)
-    ral.spin_and_execute(application.run)
+    try:
+        ral.spin_and_execute(application.run)
+    finally:
+        if rclpy.ok():
+            rclpy.shutdown()
